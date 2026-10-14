@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Operações de Mutação</title>
+<style>
+  :root {
+    --bg: #fafaf9; --fg: #1c1917; --muted: #6b6560; --card: #ffffff; --border: #e4e0dc;
+    --accent: #2563eb; --accent-fg: #ffffff; --canon: #bbf7d0; --warn-bg: #fef3c7; --warn-fg: #78350f;
+    --err-bg: #fee2e2; --err-fg: #7f1d1d; --bar-bg: #ece9e5;
+    --n0: #16a34a; --n1: #0ea5e9; --n2: #f59e0b; --n3: #9333ea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151413; --fg: #f1efed; --muted: #a39d97; --card: #1f1d1b; --border: #34312e;
+      --accent: #60a5fa; --accent-fg: #0b1220; --canon: #14532d; --warn-bg: #3b2f0b; --warn-fg: #fde68a;
+      --err-bg: #450a0a; --err-fg: #fecaca; --bar-bg: #2d2a27;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 28px 16px 64px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  h2 { font-size: 1.05rem; margin: 0 0 10px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  textarea { width: 100%; min-height: 180px; resize: vertical; padding: 12px; border-radius: 8px; border: 1px solid var(--border);
+             background: var(--bg); color: var(--fg); font: inherit; }
+  textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .linha { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+  .grow { flex: 1; }
+  button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--card);
+           color: var(--fg); cursor: pointer; }
+  button.primario { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
+  button:disabled { opacity: .6; cursor: progress; }
+  .muted { color: var(--muted); font-size: .9rem; }
+  .aviso { background: var(--warn-bg); color: var(--warn-fg); padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; }
+  .erro { background: var(--err-bg); color: var(--err-fg); padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; }
+  .nivel { font-size: 1.7rem; font-weight: 700; margin: 0; }
+  .grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+  .metrica { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+  .metrica b { display: block; font-size: 1.15rem; }
+  .oculto { display: none; }
+  .box-resultado { padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); min-height: 60px; margin-bottom: 16px; white-space: pre-wrap;}
+</style>
+</head>
+<body>
+<main>
+  <button type="button" onclick="location.href='/app'" style="margin-bottom: 16px;">Voltar</button>
+
+  <h1>Operações de Mutação</h1>
+  <p class="sub">Insira um texto e escolha uma operação para gerar uma nova versão.</p>
+
+  <section class="card">
+    <label for="textoOriginal" class="muted">Texto Original</label>
+    <textarea id="textoOriginal" placeholder="Cole ou digite o texto aqui..."></textarea>
+    
+    <div class="linha">
+      <button id="btnTrocaPalavras" class="primario" type="button">Trocar Palavras</button>
+      <button id="btnTrocaGenero" class="primario" type="button">Trocar Gênero</button>
+      <button id="btnParafrasear" class="primario" type="button">Parafrasear</button>
+    </div>
+  </section>
+
+  <div id="erro" class="erro oculto" role="alert"></div>
+
+  <!-- Área exibida APÓS a mutação -->
+  <section id="areaMutacao" class="card oculto">
+    <h2>Texto Gerado</h2>
+    <div id="textoGerado" class="box-resultado"></div>
+    <button id="btnClassificar" class="primario" type="button">Avaliar Dificuldade pelo Modelo de Classificação</button>
+  </section>
+
+  <!-- Área de Resultado do Modelo de Classificação (Reutilizada) -->
+  <div id="resultado" class="oculto" aria-live="polite">
+    <section class="card">
+      <p class="muted" style="margin:0">Nível previsto</p>
+      <p class="nivel" id="nivel"></p>
+    </section>
+
+    <section class="card">
+      <h2>Métricas do texto modificado</h2>
+      <div id="metricas" class="grade"></div>
+    </section>
+  </div>
+
+</main>
+
+<script>
+// --- VARIÁVEIS GLOBAIS E CONSTANTES (Do arquivo original) ---
+const NOMES = {"Fundamental 1": "Ensino Fundamental I", "Fundamental 2": "Ensino Fundamental II", "Médio": "Ensino Médio", "Superior": "Ensino Superior"};
+const CORES = {"Fundamental 1": "var(--n0)", "Fundamental 2": "var(--n1)", "Médio": "var(--n2)", "Superior": "var(--n3)"};
+const ROTULOS_METRICAS = {
+    n_canonicas: ["Média de Palavras Canônicas", "num"],
+    n_canonicas_type: ["Média da Variedade de Palavras Canônicas", "num"],
+    size_mean_words: ["Tamanho Médio das Palavra (letras)", "num"],
+    size_mean_phrase: ["Tamanho Médio das Frases", "num"],
+    virgulas_por_frase: ["Média de Vírgulas por frase", "num"],
+    diversity: ["Média de Diversidade por frase", "num"],
+    flesch_reading_ease: ["Índice de Dificuldade das Frase (Martins, 1993)", "num"],
+    syllables_per_word: ["Média de Sílabas por Palavra", "num"],
+    prop_sconj: ["Média de Conjunções Subordinativas", "num"],
+    prop_cconj: ["Média de Conjunções Coordenativas", "num"],
+    prop_adj: ["Média de Adjetivos", "num"],
+    prop_adv: ["Média de Adverbios", "num"],
+    prop_verb: ["Média de Verbos", "num"],
+    prop_adp: ["Média de Preposições", "num"],
+};
+
+const $ = (id) => document.getElementById(id);
+function el(tag, cls, texto) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (texto !== undefined) e.textContent = texto;
+  return e;
+}
+const pct = (x) => (x * 100).toFixed(1).replace(".", ",") + "%";
+const num = (x) => x.toFixed(2).replace(".", ",");
+const nome = (c) => NOMES[c] || c;
+
+function mostrarErro(msg) {
+  $("erro").textContent = msg;
+  $("erro").classList.toggle("oculto", !msg);
+}
+
+function mensagemDeErro(corpo, status) {
+  const d = corpo && corpo.detail;
+  if (typeof d === "string") return d;
+  return "Erro " + status + " ao processar o texto.";
+}
+
+// --- FUNÇÕES DE EXIBIÇÃO DO MODELO DE CLASSIFICAÇÃO ---
+function renderizar(d) {
+    $("nivel").textContent = nome(d.level);
+    $("nivel").style.color = CORES[d.level] || "inherit";
+    const met = $("metricas");  
+    met.replaceChildren();
+    Object.entries(ROTULOS_METRICAS).forEach(([chave, [rotulo, tipo]]) => {
+        if (!d.metricas || !(chave in d.metricas)) return;
+        const caixa = el("div", "metrica");
+        caixa.append(el("b", null, tipo === "pct" ? pct(d.metricas[chave]) : num(d.metricas[chave])), el("span", "muted", rotulo));
+        met.append(caixa);
+    });
+    $("resultado").classList.remove("oculto");
+}
+
+async function classificar() {
+  // Pega o texto que foi GERADO pela mutação
+  const texto = $("textoGerado").textContent;
+  mostrarErro("");
+  
+  $("btnClassificar").disabled = true;
+  $("btnClassificar").textContent = "Analisando...";
+  
+  // ===============================================================
+  // INSIRA A URL DA SUA API DE CLASSIFICAÇÃO AQUI
+  // ===============================================================
+  const URL_CLASSIFICAR = "/app/classify"; 
+
+  try {
+    const r = await fetch(URL_CLASSIFICAR, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({texto: texto}),
+    });
+    const corpo = await r.json().catch(() => null);
+    if (!r.ok) throw new Error(mensagemDeErro(corpo, r.status));
+    
+    renderizar(corpo);
+  } catch (e) {
+    mostrarErro(e.message || "Não foi possível falar com o servidor.");
+  } finally {
+    $("btnClassificar").disabled = false;
+    $("btnClassificar").textContent = "Avaliar Dificuldade pelo Modelo de Classificação";
+  }
+}
+
+// --- FUNÇÕES DE MUTAÇÃO (CHAMADAS DE API) ---
+async function realizarMutacao(url, botaoId) {
+  const texto = $("textoOriginal").value;
+  mostrarErro("");
+  
+  if (!texto.trim()) {
+    mostrarErro("Insira um texto original primeiro.");
+    return;
+  }
+
+  const btn = $(botaoId);
+  const textoOriginalBtn = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Processando...";
+
+  try {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({texto: texto}),
+    });
+    const corpo = await r.json().catch(() => null);
+    if (!r.ok) throw new Error(mensagemDeErro(corpo, r.status));
+    
+    // Supondo que a API retorne algo como { "texto": "novo texto..." } ou { "resultado": "novo texto..." }
+    const textoNovo = corpo.result;
+    
+    // Exibe a área de mutação
+    $("textoGerado").textContent = textoNovo;
+    $("areaMutacao").classList.remove("oculto");
+    $("resultado").classList.add("oculto"); // Esconde classificação anterior, se houver
+    
+  } catch (e) {
+    mostrarErro(e.message || "Não foi possível falar com o servidor de mutação.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = textoOriginalBtn;
+  }
+}
+
+// --- EVENT LISTENERS DOS BOTÕES DE MUTAÇÃO ---
+$("btnTrocaPalavras").addEventListener("click", () => {
+  // ===============================================================
+  // INSIRA A URL DA API DE TROCA DE PALAVRAS AQUI
+  // ===============================================================
+  const URL_TROCA_PALAVRAS = "/app/synonyms"; 
+  realizarMutacao(URL_TROCA_PALAVRAS, "btnTrocaPalavras");
+});
+
+$("btnTrocaGenero").addEventListener("click", () => {
+  // ===============================================================
+  // INSIRA A URL DA API DE TROCA DE GÊNERO AQUI
+  // ===============================================================
+  const URL_TROCA_GENERO = "/api/mutacao/troca-genero"; 
+  realizarMutacao(URL_TROCA_GENERO, "btnTrocaGenero");
+});
+
+$("btnParafrasear").addEventListener("click", () => {
+  // ===============================================================
+  // INSIRA A URL DA API DE PARAFRASEAR AQUI
+  // ===============================================================
+  const URL_PARAFRASEAR = "/api/mutacao/parafrasear"; 
+  realizarMutacao(URL_PARAFRASEAR, "btnParafrasear");
+});
+
+// Event Listener para o botão de avaliar o texto gerado
+$("btnClassificar").addEventListener("click", classificar);
+</script>
+</body>
+</html>

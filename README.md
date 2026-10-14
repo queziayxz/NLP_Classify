@@ -1,0 +1,11 @@
+# libs
+- fastapi
+- dotenv
+- uvicorn
+- jinja2
+- pydantic
+- nltk -> nltk.download("punkt"), nltk.download("punkt_tab")
+- spacy -> spacy.load("pt_core_news_sm")
+- sklearn
+- pandas
+- numpy

@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verificador de nível de leitura</title>
+<style>
+  :root {
+    --bg: #fafaf9; --fg: #1c1917; --muted: #6b6560; --card: #ffffff; --border: #e4e0dc;
+    --accent: #2563eb; --accent-fg: #ffffff; --canon: #bbf7d0; --warn-bg: #fef3c7; --warn-fg: #78350f;
+    --err-bg: #fee2e2; --err-fg: #7f1d1d; --bar-bg: #ece9e5;
+    --n0: #16a34a; --n1: #0ea5e9; --n2: #f59e0b; --n3: #9333ea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151413; --fg: #f1efed; --muted: #a39d97; --card: #1f1d1b; --border: #34312e;
+      --accent: #60a5fa; --accent-fg: #0b1220; --canon: #14532d; --warn-bg: #3b2f0b; --warn-fg: #fde68a;
+      --err-bg: #450a0a; --err-fg: #fecaca; --bar-bg: #2d2a27;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 28px 16px 64px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  h2 { font-size: 1.05rem; margin: 0 0 10px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  textarea { width: 100%; min-height: 180px; resize: vertical; padding: 12px; border-radius: 8px; border: 1px solid var(--border);
+             background: var(--bg); color: var(--fg); font: inherit; }
+  textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .linha { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+  .grow { flex: 1; }
+  button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--card);
+           color: var(--fg); cursor: pointer; }
+  button.primario { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
+  button:disabled { opacity: .6; cursor: progress; }
+  .muted { color: var(--muted); font-size: .9rem; }
+  .aviso { background: var(--warn-bg); color: var(--warn-fg); padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; }
+  .erro { background: var(--err-bg); color: var(--err-fg); padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; }
+  .nivel { font-size: 1.7rem; font-weight: 700; margin: 0; }
+  .barra { display: grid; grid-template-columns: 150px 1fr 52px; gap: 8px; align-items: center; margin: 6px 0; font-size: .95rem; }
+  .trilho { background: var(--bar-bg); border-radius: 99px; height: 12px; overflow: hidden; }
+  .preench { height: 100%; border-radius: 99px; }
+  .texto-marcado { white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow: auto; padding: 10px;
+                   border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
+  .texto-marcado.destacar .canon { background: var(--canon); border-radius: 3px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { background: var(--bar-bg); border-radius: 99px; padding: 3px 10px; font-size: .9rem; }
+  .grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+  .metrica { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+  .metrica b { display: block; font-size: 1.15rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  details summary { cursor: pointer; font-weight: 600; }
+  .oculto { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <button type="button" onclick="location.href='/app'" style="margin-bottom: 16px;">Voltar</button>
+
+  <h1>Verificador de nível de leitura</h1>
+  <p class="sub">Cole um texto em português e veja a qual nível de ensino ele mais se parece: Fundamental I, Fundamental II, Médio ou Superior.</p>
+
+  <section class="card">
+    <label for="texto" class="muted">Texto (de preferência com 100 palavras ou mais)</label>
+    <textarea id="texto" placeholder="Cole ou digite o texto aqui..." maxlength="60000"></textarea>
+    <div class="linha">
+      <button id="btn" class="primario" type="button">Classificar</button>
+      <button id="ex1" type="button">Exemplo simples</button>
+      <button id="ex2" type="button">Exemplo complexo</button>
+      <button id="limpar" type="button">Limpar</button>
+      <span class="grow"></span>
+      <span id="contador" class="muted">0 palavras</span>
+    </div>
+  </section>
+
+  <div id="erro" class="erro oculto" role="alert"></div>
+  <div id="aviso" class="aviso oculto"></div>
+
+  <div id="resultado" class="oculto" aria-live="polite">
+    <section class="card">
+      <p class="muted" style="margin:0">Nível previsto</p>
+      <p class="nivel" id="nivel"></p>
+      <p class="muted" id="resumo"></p>
+      <div id="barras"></div>
+    </section>
+
+    <!-- <section class="card">
+      <h2>Palavras canônicas</h2>
+      <p class="muted">Uma palavra é canônica quando todas as suas sílabas são do tipo consoante + vogal (como <i>cabeça</i>, <i>luta</i>, <i>sopa</i>). As canônicas aparecem destacadas.</p>
+      <label class="muted"><input type="checkbox" id="chkCanon" checked> Destacar palavras canônicas</label>
+      <div id="textoMarcado" class="texto-marcado destacar" style="margin-top:8px"></div>
+      <p id="truncado" class="muted oculto">Mostrando apenas o início do texto.</p>
+    </section> -->
+
+    <section class="card">
+      <h2>Métricas do texto</h2>
+      <div id="metricas" class="grade"></div>
+    </section>
+
+    <!-- <section class="card" id="cardChave">
+      <h2>Termos que mais pesaram na decisão</h2>
+      <div id="chaves" class="chips"></div>
+    </section> -->
+
+    <!-- <section class="card" id="cardTrechos">
+      <h2>Análise por trecho</h2>
+      <table><thead><tr><th>#</th><th>Início do trecho</th><th>Palavras</th><th>Nível</th></tr></thead><tbody id="trechos"></tbody></table>
+    </section> -->
+  </div>
+
+  <section class="card">
+    <details id="sobre">
+      <summary>Sobre o modelo</summary>
+      <div id="sobreCorpo" class="muted" style="margin-top:10px">Carregando...</div>
+    </details>
+  </section>
+</main>
+
+<script>
+const NOMES = {"Fundamental 1": "Ensino Fundamental I", "Fundamental 2": "Ensino Fundamental II", "Médio": "Ensino Médio", "Superior": "Ensino Superior"};
+const ORDEM = ["Fundamental 1", "Fundamental 2", "Médio", "Superior"];
+const CORES = {"Fundamental 1": "var(--n0)", "Fundamental 2": "var(--n1)", "Médio": "var(--n2)", "Superior": "var(--n3)"};
+const ROTULOS_METRICAS = {
+    n_canonicas: ["Média de Palavras Canônicas", "num"],
+    n_canonicas_type: ["Média da Variedade de Palavras Canônicas", "num"],
+    size_mean_words: ["Tamanho Médio das Palavra (letras)", "num"],
+    size_mean_phrase: ["Tamanho Médio das Frases", "num"],
+    virgulas_por_frase: ["Média de Vírgulas por frase", "num"],
+    diversity: ["Média de Diversidade por frase", "num"],
+    flesch_reading_ease: ["Índice de Dificuldade das Frase (Martins, 1993)", "num"],
+    syllables_per_word: ["Média de Sílabas por Palavra", "num"],
+    prop_sconj: ["Média de Conjunções Subordinativas", "num"],
+    prop_cconj: ["Média de Conjunções Coordenativas", "num"],
+    prop_adj: ["Média de Adjetivos", "num"],
+    prop_adv: ["Média de Adverbios", "num"],
+    prop_verb: ["Média de Verbos", "num"],
+    prop_adp: ["Média de Preposições", "num"],
+};
+const EXEMPLOS = {
+  simples: "O Pedro tem um cachorro. O nome do cachorro é Bolinha. Ele é pequeno e muito brincalhão. Todo dia, o Pedro leva o Bolinha para passear na praça. Lá, o cachorro corre atrás da bola. Depois, os dois bebem água na sombra de uma árvore. A mãe do Pedro diz que o Bolinha é da família. À noite, o cachorro dorme perto da cama do menino. Quando o Pedro acorda, o Bolinha já está de pé, esperando mais um dia de brincadeira. O Pedro sorri e dá um abraço no amigo. Os dois são muito felizes juntos.",
+  complexo: "A heterogeneidade dos resultados observados nos diferentes estratos socioeconômicos sugere que a eficácia das políticas educacionais não pode ser dissociada das condições estruturais em que são implementadas. Embora a literatura aponte correlações significativas entre investimento público e desempenho escolar, tais associações dependem, em grande medida, de mediações institucionais que escapam à mensuração convencional. Nesse sentido, a análise comparativa exige cautela metodológica, uma vez que a inferência causal pressupõe a identificação de variáveis de confusão frequentemente negligenciadas. Ademais, a ausência de dados longitudinais compromete a possibilidade de distinguir efeitos transitórios de transformações duradouras.",
+};
+
+const $ = (id) => document.getElementById(id);
+function el(tag, cls, texto) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (texto !== undefined) e.textContent = texto;
+  return e;
+}
+const pct = (x) => (x * 100).toFixed(1).replace(".", ",") + "%";
+const num = (x) => x.toFixed(2).replace(".", ",");
+const nome = (c) => NOMES[c] || c;
+const contar = (t) => (t.trim() ? t.trim().split(/\s+/).length : 0);
+
+function mostrarErro(msg) {
+  $("erro").textContent = msg;
+  $("erro").classList.toggle("oculto", !msg);
+}
+
+function mensagemDeErro(corpo, status) {
+  const d = corpo && corpo.detail;
+  if (typeof d === "string") return d;
+  if (Array.isArray(d) && d.length) return "Entrada inválida: o texto precisa ter entre 30 e 60.000 caracteres.";
+  return "Erro " + status + " ao processar o texto.";
+}
+
+function renderizar(d) {
+    $("nivel").textContent = nome(d.level);
+    $("nivel").style.color = CORES[d.level] || "inherit";
+    const met = $("metricas");  
+    met.replaceChildren();
+    Object.entries(ROTULOS_METRICAS).forEach(([chave, [rotulo, tipo]]) => {
+        if (!(chave in d.metricas)) return;
+        const caixa = el("div", "metrica");
+        caixa.append(el("b", null, tipo === "pct" ? pct(d.metricas[chave]) : num(d.metricas[chave])), el("span", "muted", rotulo));
+        met.append(caixa);
+    });
+    $("resultado").classList.remove("oculto");
+}
+
+async function classificar() {
+  const texto = $("texto").value;
+  mostrarErro("");
+  if (contar(texto) < 15) {
+    mostrarErro("Digite pelo menos 15 palavras para a análise.");
+    return;
+  }
+  $("btn").disabled = true;
+  $("btn").textContent = "Analisando...";
+  try {
+    const r = await fetch("/app/classify", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({texto}),
+    });
+    const corpo = await r.json().catch(() => null);
+    if (!r.ok) throw new Error(mensagemDeErro(corpo, r.status));
+    renderizar(corpo);
+  } catch (e) {
+    mostrarErro(e.message || "Não foi possível falar com o servidor.");
+  } finally {
+    $("btn").disabled = false;
+    $("btn").textContent = "Classificar";
+  }
+}
+
+function formatar(v) {
+  if (v === null || v === undefined) return "—";
+  if (typeof v === "number") return Number.isInteger(v) ? String(v) : v.toFixed(3).replace(".", ",");
+  if (Array.isArray(v)) return v.join(", ");
+  if (typeof v === "object") return Object.entries(v).map(([k, x]) => k + ": " + formatar(x)).join(" · ");
+  return String(v);
+}
+
+async function carregarSobre() {
+  const corpo = $("sobreCorpo");
+  try {
+    const r = await fetch("/api/sobre");
+    if (!r.ok) throw new Error();
+    const info = await r.json();
+    corpo.replaceChildren();
+    const tab = el("table");
+    const linhas = [
+      ["Modelo", info.configuracao && info.configuracao.modelo],
+      ["Texto (TF-IDF)", info.configuracao && info.configuracao.tfidf],
+      ["Trechos de treino", info.n_trechos_treino],
+      ["Trechos por classe", info.trechos_por_classe],
+      ["Features manuais", info.configuracao && info.configuracao.features_manuais],
+      ["Treinado em", info.treinado_em],
+    ];
+    if (info.metricas) Object.entries(info.metricas).forEach(([k, v]) => linhas.push([k, v]));
+    linhas.forEach(([k, v]) => {
+      const tr = el("tr");
+      tr.append(el("th", null, k), el("td", null, formatar(v)));
+      tab.append(tr);
+    });
+    corpo.append(tab);
+    corpo.append(el("p", "muted", "Limitação: o modelo foi treinado com textos escolares de um conjunto específico; em outros gêneros (notícias, redes sociais) o resultado pode não ser confiável."));
+  } catch (_) {
+    corpo.textContent = "Informações do modelo indisponíveis.";
+  }
+}
+
+$("btn").addEventListener("click", classificar);
+$("ex1").addEventListener("click", () => { $("texto").value = EXEMPLOS.simples; $("texto").dispatchEvent(new Event("input")); });
+$("ex2").addEventListener("click", () => { $("texto").value = EXEMPLOS.complexo; $("texto").dispatchEvent(new Event("input")); });
+$("limpar").addEventListener("click", () => {
+  $("texto").value = "";
+  $("texto").dispatchEvent(new Event("input"));
+  $("resultado").classList.add("oculto");
+  $("aviso").classList.add("oculto");
+  mostrarErro("");
+});
+$("texto").addEventListener("input", () => { $("contador").textContent = contar($("texto").value) + " palavras"; });
+// $("chkCanon").addEventListener("change", (e) => $("textoMarcado").classList.toggle("destacar", e.target.checked));
+$("sobre").addEventListener("toggle", (e) => { if (e.target.open && !e.target.dataset.ok) { e.target.dataset.ok = "1"; carregarSobre(); } });
+</script>
+</body>
+</html>

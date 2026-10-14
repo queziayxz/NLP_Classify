@@ -1,5 +1,6 @@
 import random
 import spacy
+from spacy.symbols import PROPN, CCONJ, SCONJ, nsubj
 # nltk.download('wordnet')
 # nltk.download('omw')
 from nltk.corpus import wordnet as wn
@@ -115,6 +116,191 @@ class MutationPhrase():
 
         return "".join(new_phrase).strip()
 
+    def parafra_cconj_sconj(self, phrase: str) -> str:
+        """
+            Funcao responsavel por parafrasear uma frase que possui conjuncao
+            Args:
+                - doc -> documento nlp carregado
+                - phrase [str] -> frase que sera parafraseada
+                - token [str] -> conjuncao encontrada na funcao principal
+                - index [int] -> indice do token conjuncao encontrada no texto
+            Return:
+                - new_phrase [str] -> nova frase depois de alterada
+        """
+        nlp = self.get_nlp()
+        phrase = phrase.strip()
+        doc = nlp(phrase)
+        index = -1
+        exists = False
+        new_phrase = []
+        
+        for token in doc:
+            index += 1
+            # CCONJ = Conjunção Coordenativa | SCONJ = Conjunção Subordinativa
+            if token.pos in [CCONJ, SCONJ]:
+                synonyms = self.get_synonyms(token.text)
+                filter_sy = self.filter_synonyms_context(phrase=phrase, word=token.text, synonyms=synonyms)
+                new_tok = filter_sy[0] if len(filter_sy) > 0 else token.text
+                exists = True
+                break
+  
+        if not exists: return ""
+        
+        new_phrase.append(new_tok[0].upper() + new_tok[1:] + " ")
+        for tok in doc[(index+1):]:
+            if not tok.is_punct:
+                new_phrase.append(tok.text + tok.whitespace_ if tok.pos == PROPN else tok.text.lower() + tok.whitespace_)
+        new_phrase.append(", ")
+        for tok in doc[:index]:
+            if not tok.is_punct:
+                new_phrase.append(tok.text + tok.whitespace_ if tok.pos_ == PROPN else tok.text.lower() + tok.whitespace_)
+        
+        return "".join(new_phrase).strip()
+
+    def parafra_propn(self, phrase: str) -> str:
+        """
+            Funcao responsavel por parafrasear uma frase que possui pronome proprio
+            Args:
+                - doc -> documento nlp carregado
+                - phrase [str] -> frase que sera parafraseada
+                - token [str] -> conjuncao encontrada na funcao principal
+                - index [int] -> indice do token conjuncao encontrada no texto
+            Return:
+                - new_phrase [str] -> nova frase depois de alterada
+        """
+        nlp = self.get_nlp()
+        phrase = phrase.strip()
+        doc = nlp(phrase)
+        index = -1
+        exists = False
+        new_phrase = []
+        new_tok = []
+        
+        for token in doc:
+            index += 1
+            # CCONJ = Conjunção Coordenativa | SCONJ = Conjunção Subordinativa
+            if token.ent_type_: # Se fizer parte de um nome próprio/entidade mapeada
+                # Pega todo o bloco da entidade à qual esse token pertence
+                nome_proprio_completo = token.doc[token.left_edge.i : token.right_edge.i + 1].ents[0].text
+                print(nome_proprio_completo)
+                new_tok = nome_proprio_completo
+                exists = True
+                break
+                
+        if not exists: return ""
+        new_phrase.append(new_tok + ", ")
+        for tok in doc[:index]:
+            if not tok.is_punct:
+                new_phrase.append(tok.text + tok.whitespace_ if tok.pos_ == PROPN else tok.text.lower() + tok.whitespace_)
+        new_phrase.append(", ")
+        for tok in doc[(index+1):]:
+            if not tok.is_punct:
+                new_phrase.append(tok.text + tok.whitespace_ if tok.pos == PROPN else tok.text.lower() + tok.whitespace_)
+
+        return "".join(new_phrase).strip()
+
+    def parafra_suj(self, phrase: str) -> str:
+        """
+            Funcao responsavel por parafrasear uma frase que possui sujeito
+            Args:
+                - doc -> documento nlp carregado
+                - phrase [str] -> frase que sera parafraseada
+                - token [str] -> conjuncao encontrada na funcao principal
+                - index [int] -> indice do token conjuncao encontrada no texto
+            Return:
+                - new_phrase [str] -> nova frase depois de alterada
+        """
+        nlp = self.get_nlp()
+        phrase = phrase.strip()
+        doc = nlp(phrase)
+
+        verb_main = None
+        sujeito_tokens = []
+        aux_tokens = []
+        objs = []
+        
+        # 1. Identificar o Sujeito e o Verbo Principal
+        for token in doc:
+            if token.dep_ in ["nsubj", "nsubj:pass"]:
+                verb_main = token.head
+                sujeito_tokens = list(token.subtree)
+                break
+        
+        # Se não encontrou sujeito ou verbo principal, retorna a frase original sem quebrar
+        # arrumar para quando nao possui somente sujeito
+        if not verb_main or not sujeito_tokens:
+            return phrase
+
+        # 2. Identificar todos os Verbos Auxiliares e advérbios entre o auxiliar e o principal
+        for token in doc:
+            if token.i < verb_main.i and (
+                "aux" in token.dep_ or token.head == verb_main
+            ):
+                if token not in sujeito_tokens:
+                    aux_tokens.append(token)
+
+        # 3. Identificar todos os Objetos Diretos e Indiretos da frase
+        for token in doc:
+            # Verifica se é Objeto Direto (obj) ou Objeto Indireto (iobj)
+            if token.dep_ in ["obj", "iobj"]:
+                objs = list(token.subtree)
+
+        # 4. Montar as partes da nova frase
+        # Bloco do Verbo (Auxiliares + Verbo Principal)
+        if not len(aux_tokens):
+            bloco_verbo = [verb_main.text] + [t.text for t in objs]
+        else:
+            bloco_verbo = [t.text for t in aux_tokens] + [verb_main.text]
+        bloco_verbo_str = " ".join(bloco_verbo)
+        bloco_verbo_str = bloco_verbo_str[0].upper() + bloco_verbo_str[1:].lower()
+
+        # Bloco do Sujeito (Preserva Nomes Próprios em maiúsculo)
+        bloco_sujeito = [
+            tok.text if tok.pos_ == "PROPN" else tok.text.lower()
+            for tok in sujeito_tokens
+        ]
+        bloco_sujeito_str = " ".join(bloco_sujeito)
+
+        # Bloco Restante (Tudo após o verbo principal e antes do objeto)
+        restante_tokens = [
+            tok.text
+            for tok in doc[verb_main.i + 1 :]
+            if not tok.is_punct and tok not in (sujeito_tokens and objs)
+        ]
+        restante_str = " ".join(restante_tokens)
+
+        # Bloco Objetos
+        # bloco_obj = [
+        #     tok.text if tok.pos_ == "PROPN" else tok.text.lower()
+        #     for tok in objs
+        # ]
+        # bloco_obj_str = " ".join(bloco_obj)
+
+        # Bloco Restante (Tudo após o objeto)
+        # restante_tokens_end = [
+        #     tok.text
+        #     for tok in doc[.i + 1 :]
+        #     if not tok.is_punct and tok not in sujeito_tokens
+        # ]
+        # restante_str_end = " ".join(restante_tokens_end)
+
+        # Captura a pontuação final original (se houver)
+        pontuacao_final = doc[-1].text if doc[-1].is_punct else "."
+
+        # 4. Unir tudo
+        nova_frase = f"{bloco_verbo_str} {bloco_sujeito_str}"
+        if restante_str:
+            nova_frase += f" {restante_str}"
+
+        return nova_frase + pontuacao_final
+
+        # new_phrase.append(aux_main[0].text[0].upper() + aux_main[0].text[1:])
+        # new_phrase.append(aux_main[1].text.lower() if not aux_main[1].pos == PROPN else aux_main[1].text)
+        # new_phrase.append(" ".join([tok.text.lower() for tok in sujeito_completo if not tok.pos == PROPN]))
+        # new_phrase.append(" ".join([tok.text for tok in doc[(verb_main.i+1):] if not tok.is_punct]))
+
+        # return " ".join(new_phrase).strip()
+        
     def parafrasear(self, phrase: str):
         """
             Funcao responsavel por parafrasear uma frase informada
@@ -123,21 +309,21 @@ class MutationPhrase():
             Return:
                 - new_phrase [str] -> frase nova depois de ser parafraseada
         """
-        nlp = self.get_nlp()
-        phrase = phrase.strip()
-        doc = nlp(phrase)
-
-        for token in doc:
-            # CCONJ = Conjunção Coordenativa | SCONJ = Conjunção Subordinativa
-            if token.pos_ in ["CCONJ", "SCONJ"]:
-                print(token)
-                synonyms = self.get_synonyms(token.text)
-                filter_sy = self.filter_synonyms_context(phrase=phrase, word=token.text, synonyms=synonyms)
-                print(f"novo token: {len(filter_sy) > 0 : filter_sy[0] ? token}")
-                # print(f"{token.text:<15} | {token.pos_:<25} | {spacy.explain(token.pos_)}")
-        # print(phrase)
+        # new_phrase = self.parafra_cconj_sconj(phrase)
+        # if not len(new_phrase):
+        new_phrase = self.parafra_suj(phrase)
+        # if not len(new_phrase):
+        #     new_phrase = self.parafra_propn(phrase)
+        #     print(new_phrase)
+        return new_phrase
 
 mut = MutationPhrase()
-mut.parafrasear("A taxa de aprovação subiu porque os alunos estudaram mais")
+# result = mut.parafrasear("O projeto foi aprovado por Maria.")
+# result = mut.parafrasear("O projeto inovador foi aprovado, mas a equipe antiga saiu.")
+# result = mut.parafrasear("A taxa de aprovação subiu porque os alunos estudaram mais.")
+# result = mut.parafrasear("Há duas semanas atrás estava chovendo")
+# result = mut.parafrasear("O projeto foi aprovado por Maria da Silva em São Paulo.")
+# result = mut.parafrasear("O cantor Roberto Carlos fez aniversário em São Paulo")
+result = mut.parafrasear("O texto foi lido pelo aluno")
 # new_phrase = mut.mutation("O texto foi lido pelo aluno")
-# print(f"nova frase: {new_phrase}")
+print(result)

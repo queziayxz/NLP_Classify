@@ -47,5 +47,9 @@ async def classify(payload: InputModel):
 @application.post("/synonyms")
 async def synonyms(payload: InputModel):
     result = mutation.swap_synonyms(phrase=payload.texto)
-    print(result)
+    return {"result":result}
+
+@application.post("/parafrase")
+async def parafrase(payload: InputModel):
+    result = mutation.parafrasear(phrase=payload.texto)
     return {"result":result}

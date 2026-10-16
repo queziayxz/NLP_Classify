@@ -1,6 +1,5 @@
 # libs
 - fastapi
-- dotenv
 - uvicorn
 - jinja2
 - pydantic

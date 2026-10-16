@@ -181,5 +181,5 @@ def avaliar_no_teste(nome_modelo, usar_tfidf, cols, T_treino, F_test, y_test=Non
     # if salvar_png:
     #     arq = "cm_" + "".join(ch if ch.isalnum() else "_" for ch in rotulo)[:60] + ".png"
     #     plt.savefig(RAIZ / "resultados" / arq, dpi=150)
-    plt.show()
+    # plt.show()
     return res, modelo

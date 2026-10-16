@@ -253,7 +253,7 @@ class MutationPhrase():
         if not len(aux_tokens):
             bloco_verbo = [verb_main] + [t for t in objs]
         else:
-            bloco_verbo = [verb_main] + [t for t in aux_tokens]
+            bloco_verbo = [t for t in aux_tokens] + [verb_main]
         bloco_verbo_str = " ".join([t.text for t in bloco_verbo])
         bloco_verbo_str = bloco_verbo_str[0].upper() + bloco_verbo_str[1:].lower()
 
@@ -265,7 +265,10 @@ class MutationPhrase():
         bloco_sujeito_str = " ".join(bloco_sujeito)
 
         # Bloco Restante (Tudo após o verbo principal e antes do objeto)
-        tokens_utilizados = set(sujeito_tokens + bloco_verbo + objs)
+        if not len(aux_tokens):
+            tokens_utilizados = set(sujeito_tokens + bloco_verbo + objs)
+        else:
+            tokens_utilizados = set(sujeito_tokens + bloco_verbo)
         restante_tokens = [
             tok.text
             for tok in doc

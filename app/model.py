@@ -51,8 +51,3 @@ class Model():
             },
             "level": predict[0]
         }
-
-# model = Model()
-# # model.predic("O Pedro tem um cachorro. O nome do cachorro é Bolinha. Ele é pequeno e muito brincalhão. Todo dia, o Pedro leva o Bolinha para passear na praça. Lá, o cachorro corre atrás da bola. Depois, os dois bebem água na sombra de uma árvore. A mãe do Pedro diz que o Bolinha é da família. À noite, o cachorro dorme perto da cama do menino. Quando o Pedro acorda, o Bolinha já está de pé, esperando mais um dia de brincadeira. O Pedro sorri e dá um abraço no amigo. Os dois são muito felizes juntos.")
-# result = model.predic("A heterogeneidade dos resultados observados nos diferentes estratos socioeconômicos sugere que a eficácia das políticas educacionais não pode ser dissociada das condições estruturais em que são implementadas. Embora a literatura aponte correlações significativas entre investimento público e desempenho escolar, tais associações dependem, em grande medida, de mediações institucionais que escapam à mensuração convencional. Nesse sentido, a análise comparativa exige cautela metodológica, uma vez que a inferência causal pressupõe a identificação de variáveis de confusão frequentemente negligenciadas. Ademais, a ausência de dados longitudinais compromete a possibilidade de distinguir efeitos transitórios de transformações duradouras.")
-# print(result)

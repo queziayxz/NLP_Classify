@@ -40,8 +40,6 @@ async def page_mutation(request: Request):
 @application.post("/classify")
 async def classify(payload: InputModel):
     result = model.predict(text=payload.texto);
-    # if hasattr(result, "tolist"):
-    #     result = result.tolist()
     return result
 
 @application.post("/synonyms")

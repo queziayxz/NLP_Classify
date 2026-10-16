@@ -118,6 +118,7 @@ function el(tag, cls, texto) {
 const pct = (x) => (x * 100).toFixed(1).replace(".", ",") + "%";
 const num = (x) => x.toFixed(2).replace(".", ",");
 const nome = (c) => NOMES[c] || c;
+const contar = (t) => (t.trim() ? t.trim().split(/\s+/).length : 0);
 
 function mostrarErro(msg) {
   $("erro").textContent = msg;
@@ -186,6 +187,10 @@ async function realizarMutacao(url, botaoId) {
   
   if (!texto.trim()) {
     mostrarErro("Insira um texto original primeiro.");
+    return;
+  }
+  if (contar(texto) < 4) {
+    mostrarErro("Digite pelo menos 4 palavras para operação");
     return;
   }
 

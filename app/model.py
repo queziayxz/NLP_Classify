@@ -1,6 +1,6 @@
-import os
 import joblib
 from pathlib import Path
+import pandas as pd
 
 from .preprocess import PreProcess
 from .features import Features
@@ -25,7 +25,10 @@ class Model():
     def predict(self, text: str):
         model = self.load_model()
         fragments = preprocess.split_phrase(text=text, n_word=150)
-        df = features.create(fragments=fragments)
+        rows = []
+        for frag in fragments:
+            rows.append(features.create(fragment=frag))
+        df = pd.DataFrame(rows)
         df["text"] = text
         predict = model.predict(df)
 

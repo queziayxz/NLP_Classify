@@ -98,23 +98,23 @@ class PreProcess():
         return fragment
 
     def create_phrases(self, docs, n_words:int = 200):
-            """
-                Funcao responsavel por dividir o campo texto do dataFrame em frases menores
-                Args: 
-                    docs: [DataFrame] -> conjunto de dados (treino, teste, validacao)
-                    n_words: [int] -> numero maximo de palavras que uma frase tera
-                
-                Return: 
-                    df: [DataFrame] -> um novo data frame com as frases reduzidas
-            """
-            rows = []
-            for _, row in docs.iterrows():
-                fragment = self.split_phrase(row["text"], n_words)
-                for index, frag in enumerate(fragment):
-                    rows.append({"doc_id": row["doc_id"], "fragment_id": index, "text": frag, "classe": row["classe"]})
-    
-            df = pd.DataFrame(rows)
-            return df
+        """
+            Funcao responsavel por dividir o campo texto do dataFrame em frases menores
+            Args: 
+                docs: [DataFrame] -> conjunto de dados (treino, teste, validacao)
+                n_words: [int] -> numero maximo de palavras que uma frase tera
+            
+            Return: 
+                df: [DataFrame] -> um novo data frame com as frases reduzidas
+        """
+        rows = []
+        for _, row in docs.iterrows():
+            fragment = self.split_phrase(row["text"], n_words)
+            for index, frag in enumerate(fragment):
+                rows.append({"doc_id": row["doc_id"], "fragment_id": index, "text": frag, "classe": row["classe"]})
+
+        df = pd.DataFrame(rows)
+        return df
     
     def clear_text(self,text: str):
         """

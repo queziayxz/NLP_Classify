@@ -1,13 +1,3 @@
-"""
-Comparação de modelos de classificação de nível de ensino.
-
-Fluxo recomendado:
-  1) comparar_todos(...)    -> CV agrupada por documento em treino+validação (TESTE NÃO e USADO)
-  2) escolher os melhores pela media do macro-F1 da CV
-  3) avaliar_no_teste(...)  -> ajusta em treino+validação e avalia UMA vez no teste
-
-Requisitos: scikit-learn, pandas, numpy, matplotlib, seaborn (lightgbm e opcional).
-"""
 import time
 
 import numpy as np
@@ -161,7 +151,7 @@ def comparar_todos(T, cols_all, cols_canon, n_splits=5, salvar_csv="resultados_c
 # ----------------------------------------------------------------------
 # 2) Avaliação final no teste (usar UMA vez, com modelos já escolhidos)
 # ----------------------------------------------------------------------
-def avaliar_no_teste(nome_modelo, usar_tfidf, cols, T_treino, F_test=None, y_test=None, rotulo=None, salvar_png=True):
+def avaliar_no_teste(nome_modelo, usar_tfidf, cols, T_treino, F_test, y_test=None, rotulo=None, salvar_png=True):
     modelo = construir(nome_modelo, usar_tfidf, cols)
     modelo.fit(T_treino, T_treino["classe"])
     y_pred = modelo.predict(F_test)
@@ -188,8 +178,8 @@ def avaliar_no_teste(nome_modelo, usar_tfidf, cols, T_treino, F_test=None, y_tes
     plt.ylabel("Classe real")
     plt.xlabel("Classe prevista")
     plt.tight_layout()
-    if salvar_png:
-        arq = "cm_" + "".join(ch if ch.isalnum() else "_" for ch in rotulo)[:60] + ".png"
-        plt.savefig(RAIZ / "resultados" / arq, dpi=150)
+    # if salvar_png:
+    #     arq = "cm_" + "".join(ch if ch.isalnum() else "_" for ch in rotulo)[:60] + ".png"
+    #     plt.savefig(RAIZ / "resultados" / arq, dpi=150)
     plt.show()
     return res, modelo

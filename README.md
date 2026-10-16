@@ -9,3 +9,4 @@
 - sklearn
 - pandas
 - numpy
+- pyphen - conta quant silabas

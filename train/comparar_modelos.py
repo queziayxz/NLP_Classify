@@ -15,6 +15,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import joblib
+from pathlib import Path
 
 from sklearn.compose import ColumnTransformer
 from sklearn.dummy import DummyClassifier
@@ -22,12 +23,15 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (accuracy_score, classification_report, confusion_matrix,
-                             f1_score, make_scorer)
+                             f1_score, make_scorer, precision_score, recall_score)
 from sklearn.model_selection import StratifiedGroupKFold, cross_validate
 from sklearn.naive_bayes import ComplementNB
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import LinearSVC
+
+RAIZ = Path(__file__).resolve().parent.parent
+CAMINHO = RAIZ / "model" / "model.joblib"
 
 try:
     from lightgbm import LGBMClassifier
@@ -56,9 +60,11 @@ def acc_mais_menos_1(y_true, y_pred):
 
 SCORING = {
     "f1_macro": "f1_macro",
+    "prec": make_scorer(precision_score, average="macro", zero_division=0),   # nova
+    "rec": make_scorer(recall_score, average="macro", zero_division=0),       # nova
     "acc": "accuracy",
     "acc_pm1": make_scorer(acc_mais_menos_1),
-    "mae": make_scorer(mae_ordinal, greater_is_better=False),  # vem negativo; invertido depois
+    "mae": make_scorer(mae_ordinal, greater_is_better=False),
 }
 
 # ----------------------------------------------------------------------
@@ -137,7 +143,9 @@ def comparar_todos(T, cols_all, cols_canon, n_splits=5, salvar_csv="resultados_c
             linhas.append({
                 "modelo": nome, "entrada": conj_nome,
                 "macro_F1": r["test_f1_macro"].mean(), "macro_F1_dp": r["test_f1_macro"].std(),
-                "acuracia": r["test_acc"].mean(),
+                "precisao_macro": r["test_prec"].mean(), "precisao_macro_dp": r["test_prec"].std(),
+                "recall_macro": r["test_rec"].mean(), "recall_macro_dp": r["test_rec"].std(),
+                "acuracia": r["test_acc"].mean(), "acuracia_dp": r["test_acc"].std(),
                 "acerto_±1_nivel": r["test_acc_pm1"].mean(),
                 "MAE_niveis": abs(r["test_mae"].mean()),
                 "seg": round(time.time() - t0, 1),
@@ -156,58 +164,32 @@ def comparar_todos(T, cols_all, cols_canon, n_splits=5, salvar_csv="resultados_c
 def avaliar_no_teste(nome_modelo, usar_tfidf, cols, T_treino, F_test=None, y_test=None, rotulo=None, salvar_png=True):
     modelo = construir(nome_modelo, usar_tfidf, cols)
     modelo.fit(T_treino, T_treino["classe"])
-    # y_pred = modelo.predict(F_test)
+    y_pred = modelo.predict(F_test)
 
-    # rotulo = rotulo or f"{nome_modelo} | {'TF-IDF' if usar_tfidf else ''}{'+' if usar_tfidf and cols else ''}{'features' if cols else ''}"
-    # print("=" * 70)
-    # print(rotulo)
-    # print(classification_report(y_test, y_pred, labels=CLASSES, zero_division=0))
-    # res = {
-    #     "modelo": rotulo,
-    #     "macro_F1": f1_score(y_test, y_pred, average="macro"),
-    #     "acuracia": accuracy_score(y_test, y_pred),
-    #     "acerto_±1_nivel": acc_mais_menos_1(y_test, y_pred),
-    #     "MAE_niveis": mae_ordinal(y_test, y_pred),
-    # }
-    # print({k: round(v, 3) for k, v in res.items() if k != "modelo"})
+    rotulo = rotulo or f"{nome_modelo} | {'TF-IDF' if usar_tfidf else ''}{'+' if usar_tfidf and cols else ''}{'features' if cols else ''}"
+    print("=" * 70)
+    print(rotulo)
+    print(classification_report(y_test, y_pred, labels=CLASSES, zero_division=0))
+    res = {
+        "modelo": rotulo,
+        "precision": precision_score(y_test, y_pred, average="macro"),
+        "recall": recall_score(y_test, y_pred, average="macro"),
+        "macro_F1": f1_score(y_test, y_pred, average="macro"),
+        "acuracia": accuracy_score(y_test, y_pred),
+        "acerto_±1_nivel": acc_mais_menos_1(y_test, y_pred),
+        "MAE_niveis": mae_ordinal(y_test, y_pred),
+    }
+    print({k: round(v, 3) for k, v in res.items() if k != "modelo"})
 
-    # cm = confusion_matrix(y_test, y_pred, labels=CLASSES)
-    # plt.figure(figsize=(7, 5.5))
-    # sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=CLASSES, yticklabels=CLASSES)
-    # plt.title(f"Matriz de confusão (teste) - {rotulo}", fontsize=10)
-    # plt.ylabel("Classe real")
-    # plt.xlabel("Classe prevista")
-    # plt.tight_layout()
-    # if salvar_png:
-    #     arq = "cm_" + "".join(ch if ch.isalnum() else "_" for ch in rotulo)[:60] + ".png"
-    #     plt.savefig(arq, dpi=150)
-    # plt.show()
-    # return res, modelo
-    return modelo
-
-
-# ----------------------------------------------------------------------
-# Demonstração com dados sinteticos (só para verificar que o código roda)
-# ----------------------------------------------------------------------
-if __name__ == "__main__":
-    import matplotlib
-    matplotlib.use("Agg")
-    rng = np.random.default_rng(0)
-    pool = {c: [f"palavra{i}_{k}" for i in range(40)] for k, c in enumerate(CLASSES)}
-    comuns = [f"comum{i}" for i in range(60)]
-    linhas = []
-    for d in range(160):
-        classe = CLASSES[d % 4]
-        for _ in range(2):  # 2 trechos por documento
-            palavras = list(rng.choice(pool[classe], 25)) + list(rng.choice(comuns, 60))
-            rng.shuffle(palavras)
-            k = ORDEM[classe]
-            linhas.append({
-                "doc_id": f"doc{d}", "classe": classe, "text": " ".join(palavras),
-                "can_a": rng.normal(0.2 - 0.01 * k, 0.05), "can_b": rng.normal(0.15 - 0.01 * k, 0.05),
-                "tam_frase": rng.normal(17 + 4 * k, 5), "tam_palavra": rng.normal(4.7 + 0.1 * k, 0.4),
-            })
-    T = pd.DataFrame(linhas)
-    cols_all = ["can_a", "can_b", "tam_frase", "tam_palavra"]
-    tab = comparar_todos(T, cols_all, cols_canon=["can_a", "can_b"], salvar_csv=None)
-    print(tab.round(3).to_string())
+    cm = confusion_matrix(y_test, y_pred, labels=CLASSES)
+    plt.figure(figsize=(7, 5.5))
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=CLASSES, yticklabels=CLASSES)
+    plt.title(f"Matriz de confusão (teste) - {rotulo}", fontsize=10)
+    plt.ylabel("Classe real")
+    plt.xlabel("Classe prevista")
+    plt.tight_layout()
+    if salvar_png:
+        arq = "cm_" + "".join(ch if ch.isalnum() else "_" for ch in rotulo)[:60] + ".png"
+        plt.savefig(RAIZ / "resultados" / arq, dpi=150)
+    plt.show()
+    return res, modelo

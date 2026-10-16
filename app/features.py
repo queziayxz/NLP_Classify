@@ -1,10 +1,11 @@
 import pandas as pd
-import re
+import pyphen
 import spacy
 from collections import Counter
 from nltk.tokenize import sent_tokenize, word_tokenize
 
 nlp = spacy.load("pt_core_news_sm")
+dic = pyphen.Pyphen(lang='pt_BR')
 
 class Features():
     def __init__(self):
@@ -166,21 +167,25 @@ class Features():
             Decisoes:
                 - Ditongos (pai, muito, mao) viram duas vogais seguidas, entao a palavra eh nao canonica.
                 - Palavras de uma vogal so ("a", "o", "e") sao nao canonicas
-                - ss e rr contam como uma unica consoante
-                - x eh tratado como consoante simples
             Args: 
                 text [str] -> palavra a ser verificada
             
             Return:
                 bool -> verdadeiro ou falso, se a palavra for canonica ou nao
         """
-        VOGAIS = "aeiouáéíóúâêôãõàü"
-        C = r"(?:ch|lh|nh|rr|ss|qu(?=[eéêií])|gu(?=[eéêií])|[b-df-hj-np-tv-zç])"
-        V = f"[{VOGAIS}]"
-        CANONICA = re.compile(f"^(?:{C}{V})+$")
-
-        p = word.lower()
-        return p.isalpha() and bool(CANONICA.match(p))
+        word = word.lower()
+        silabas = dic.inserted(word).split('-')
+        
+        vogais = "aeiouáéíóúâêôãõüà"
+        
+        for silaba in silabas:
+            # Cria o padrão da sílaba (ex: "ca" vira "CV", "trans" vira "CCVCC")
+            padrao = "".join(["V" if letra in vogais else "C" for letra in silaba if letra.isalpha()])
+            
+            # Se alguma sílaba NÃO for rigorosamente Consoante + Vogal (CV), a palavra não é canônica
+            if padrao != "CV":
+                return False
+        return True
 
     def count_syllables_pt(self, word: str):
         """
@@ -192,6 +197,8 @@ class Features():
                 - quant [int] -> quantidade de silabas da palavra
         """
         word = word.lower()
-        # Encontra grupos de vogais juntas (ex: 'ei', 'a', 'ão')
-        vowel_groups = re.findall(r'[aeiouáéíóúâêîôûãõ]+', word)
-        return max(1, len(vowel_groups))
+        word_hifen = dic.inserted(word)
+        return len(word_hifen.split('-'))
+
+# teste = Features()
+# print(teste.is_canonica("c"))

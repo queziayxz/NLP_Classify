@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, HTTPException
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 from pydantic import BaseModel, Field
@@ -46,10 +46,21 @@ async def classify(payload: InputModel):
 
 @application.post("/synonyms")
 async def synonyms(payload: InputModel):
-    result = mutation.swap_synonyms(phrase=payload.texto)
+    try:
+        result = mutation.swap_synonyms(phrase=payload.texto)
+    except Exception as error:
+        raise HTTPException(status_code=402, detail=str(error))
     return {"result":result}
 
 @application.post("/parafrase")
 async def parafrase(payload: InputModel):
     result = mutation.parafrasear(phrase=payload.texto)
+    return {"result":result}
+
+@application.post("/combinacao")
+async def combinacao(payload: InputModel):
+    try:
+        result = mutation.mutation(phrase=payload.texto)
+    except Exception as error:
+        raise HTTPException(status_code=402, detail=str(error))
     return {"result":result}

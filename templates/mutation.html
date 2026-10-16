@@ -58,8 +58,8 @@
     
     <div class="linha">
       <button id="btnTrocaPalavras" class="primario" type="button">Trocar Palavras</button>
-      <button id="btnTrocaGenero" class="primario" type="button">Trocar Gênero</button>
       <button id="btnParafrasear" class="primario" type="button">Parafrasear</button>
+      <button id="combinacao" class="primario" type="button">Combinar Operações</button>
     </div>
   </section>
 
@@ -122,6 +122,8 @@ const nome = (c) => NOMES[c] || c;
 function mostrarErro(msg) {
   $("erro").textContent = msg;
   $("erro").classList.toggle("oculto", !msg);
+  $("resultado").classList.add("oculto")
+  $("areaMutacao").classList.add("oculto")
 }
 
 function mensagemDeErro(corpo, status) {
@@ -143,6 +145,7 @@ function renderizar(d) {
         met.append(caixa);
     });
     $("resultado").classList.remove("oculto");
+    $("areaMutacao").classList.remove("oculto");
 }
 
 async function classificar() {
@@ -225,12 +228,12 @@ $("btnTrocaPalavras").addEventListener("click", () => {
   realizarMutacao(URL_TROCA_PALAVRAS, "btnTrocaPalavras");
 });
 
-$("btnTrocaGenero").addEventListener("click", () => {
+$("combinacao").addEventListener("click", () => {
   // ===============================================================
   // INSIRA A URL DA API DE TROCA DE GÊNERO AQUI
   // ===============================================================
-  const URL_TROCA_GENERO = "/api/mutacao/troca-genero"; 
-  realizarMutacao(URL_TROCA_GENERO, "btnTrocaGenero");
+  const URL_TROCA_GENERO = "/app/combinacao"; 
+  realizarMutacao(URL_TROCA_GENERO, "combinacao");
 });
 
 $("btnParafrasear").addEventListener("click", () => {

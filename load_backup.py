@@ -21,7 +21,7 @@ DIR_DATA = [FUND_1,FUND_2,MEDIO,SUPERIOR]
 DATASET = "./dataset_caed"
 
 STOP = set(stopwords.words("portuguese"))
-nlp = spacy.load("pt_core_news_sm")
+nlp = spacy.load("pt_core_news_lg")
 
 class Load():
 
